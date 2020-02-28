@@ -20,6 +20,8 @@ from pysmt.logics import QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX
 from pysmt.constants import to_python_integer
 
 
+SWITCH_SOLVERS = {}
+
 class SwitchOptions(SolverOptions):
     def __call__(self, solver):
         if self.generate_models:
@@ -27,11 +29,9 @@ class SwitchOptions(SolverOptions):
         if self.incremental:
             solver.solver.set_opt('incremental', 'true')
 
-class SwitchSolver(IncrementalTrackingSolver,
+class _SwitchSolver(IncrementalTrackingSolver,
                    SmtLibBasicSolver,
                    SmtLibIgnoreMixin):
-    LOGICS = [QF_BV, QF_UFBV,]# QF_ABV, QF_AUFBV, QF_AX]
-
     OptionsClass = SwitchOptions
 
     def __init__(self, environment, logic, **options):
@@ -40,7 +40,7 @@ class SwitchSolver(IncrementalTrackingSolver,
                         logic=logic,
                         **options)
 
-        self.solver = ss.create_msat_solver()
+        self.solver = self._create_solver()
         self.options(self)
         self.converter = SwitchConverter(environment,  self.solver)
         self.mgr = environment.formula_manager
@@ -107,9 +107,23 @@ class SwitchSolver(IncrementalTrackingSolver,
     def _pop(self, levels=1):
         self.solver.pop(levels)
 
-
     def _exit(self):
         pass
+
+
+if 'btor' in  ss.solvers:
+    class SwitchBtor(_SwitchSolver):
+        LOGICS = [QF_BV, QF_UFBV]
+        _create_solver = ss.create_btor_solver
+
+    SWITCH_SOLVERS['switch-btor'] = SwitchBtor
+
+if 'msat' in ss.solvers:
+    class SwitchMsat(_SwitchSolver):
+        LOGICS = [QF_BV, QF_UFBV] #, QF_ABV, QF_AUFBV, QF_AX]
+        _create_solver = ss.create_msat_solver
+
+    SWITCH_SOLVERS['switch-msat'] = SwitchMsat
 
 
 def check_args(cmp, n):
@@ -204,7 +218,10 @@ class SwitchConverter(Converter, DagWalker):
     @check_args(operator.eq, 0)
     def _walk_constant(self, formula, args, **kwargs):
         sort = self._convert_sort(formula.constant_type())
-        res = self.make_term(formula.constant_value(), sort)
+        if formula.constant_type().is_bool_type():
+            res = self.make_term(bool(formula.constant_value()))
+        else:
+            res = self.make_term(repr(formula.constant_value()), sort)
         return res
 
     walk_bool_constant = _walk_constant
