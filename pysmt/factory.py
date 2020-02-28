@@ -39,7 +39,7 @@ from pysmt.solvers.qelim import (ShannonQuantifierEliminator,
 from pysmt.solvers.solver import SolverOptions
 from pysmt.solvers.portfolio import Portfolio
 
-DEFAULT_SOLVER_PREFERENCE_LIST = ['msat', 'z3', 'cvc4', 'yices', 'btor',
+DEFAULT_SOLVER_PREFERENCE_LIST = ['switch','msat', 'z3', 'cvc4', 'yices', 'btor',
                                   'picosat', 'bdd']
 DEFAULT_QELIM_PREFERENCE_LIST = ['z3', 'msat_fm', 'msat_lw', 'bdd',
                                  'shannon', 'selfsub']
@@ -258,6 +258,13 @@ class Factory(object):
             installed_solvers['btor'] = BoolectorSolver
         except SolverAPINotFound:
             pass
+
+        try:
+            from pysmt.solvers.switch_solver import SwitchSolver
+            installed_solvers['switch'] = SwitchSolver
+        except SolverAPINotFound:
+            pass
+
 
         # If ENV_SOLVER_LIST is set, only a subset of the installed
         # solvers will be available.
