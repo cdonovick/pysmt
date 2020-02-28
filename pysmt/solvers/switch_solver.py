@@ -301,8 +301,8 @@ class SwitchConverter(Converter, DagWalker):
     walk_bv_tonatural = make_walk_unary(ss.primops.BV_To_Nat)
     walk_bv_udiv = make_walk_binary(ss.primops.BVUdiv)
     walk_bv_ule = make_walk_binary(ss.primops.BVUle)
-    walk_bv_ult = make_walk_binary(ss.primops.BVUrem)
-    walk_bv_urem = make_walk_binary(ss.primops.BVUdiv)
+    walk_bv_ult = make_walk_binary(ss.primops.BVUlt)
+    walk_bv_urem = make_walk_binary(ss.primops.BVUrem)
     walk_bv_xor = make_walk_binary(ss.primops.Xor)
 
     @check_args(operator.eq, 1)
