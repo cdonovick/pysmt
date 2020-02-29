@@ -29,6 +29,13 @@ class SwitchOptions(SolverOptions):
         if self.incremental:
             solver.solver.set_opt('incremental', 'true')
 
+        for k, v in self.solver_options.items():
+            try:
+                solver.solver.set_opt(k, v)
+            except:
+                raise PysmtValueError(f"Error setting the option '{k}={v}'")
+
+
 class _SwitchSolver(IncrementalTrackingSolver,
                    SmtLibBasicSolver,
                    SmtLibIgnoreMixin):
@@ -75,7 +82,7 @@ class _SwitchSolver(IncrementalTrackingSolver,
 
     @clear_pending_pop
     def _reset_assertions(self):
-        self.solver.reset()
+        self.solver.reset_assertions()
         self.options(self)
 
     @clear_pending_pop
@@ -97,7 +104,7 @@ class _SwitchSolver(IncrementalTrackingSolver,
         elif res.is_unsat():
             return False
         else:
-            raise SolverReturnedUnknownResultError
+            raise SolverReturnedUnknownResultError()
 
     @clear_pending_pop
     def _push(self, levels=1):
@@ -115,6 +122,12 @@ if 'btor' in  ss.solvers:
     class SwitchBtor(_SwitchSolver):
         LOGICS = [QF_BV, QF_UFBV]
         _create_solver = ss.create_btor_solver
+
+        @clear_pending_pop
+        def _reset_assertions(self):
+            self.solver = self._create_solver()
+            self.converter = SwitchConverter(self.environment,  self.solver)
+            self.options(self)
 
     SWITCH_SOLVERS['switch-btor'] = SwitchBtor
 
