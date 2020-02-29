@@ -66,7 +66,7 @@ class _SwitchSolver(IncrementalTrackingSolver,
         elif sort.is_function_type():
             raise NotImplementedError
         elif sort.is_int_type():
-            return self.mgr.Int(int(val), sort.width)
+            return self.mgr.Int(int(val))
         elif sort.is_real_type():
             raise NotImplementedError
         else:
