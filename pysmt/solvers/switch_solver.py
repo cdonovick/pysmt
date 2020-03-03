@@ -3,6 +3,7 @@ import functools as ft
 import itertools as it
 import operator
 from pysmt.exceptions import SolverAPINotFound
+import sys
 
 try:
     import smt_switch as ss
@@ -57,7 +58,8 @@ class _SwitchSolver(IncrementalTrackingSolver,
     def get_model(self):
         assignment = {}
         for s in self.converter.declared_vars:
-            assignment[s] = self.get_value(s)
+            v = self.get_value(s)
+            assignment[s] = v
         return EagerModel(assignment=assignment, environment=self.environment)
 
     def get_value(self, item):
@@ -66,17 +68,17 @@ class _SwitchSolver(IncrementalTrackingSolver,
         item = self.converter.convert(item)
         val = self.solver.get_value(item)
         if sort.is_array_type():
-            raise NotImplementedError
+            raise NotImplementedError()
         elif sort.is_bool_type():
             return self.mgr.Bool(bool(val))
         elif sort.is_bv_type():
             return self.mgr.BV(int(val), sort.width)
         elif sort.is_function_type():
-            raise NotImplementedError
+            raise NotImplementedError()
         elif sort.is_int_type():
             return self.mgr.Int(int(val))
         elif sort.is_real_type():
-            raise NotImplementedError
+            raise NotImplementedError()
         else:
             raise ConvertExpressionError(f'Unsupported sort: {sort}')
 
@@ -131,14 +133,14 @@ if 'btor' in  ss.solvers:
             self.options(self)
 
     SWITCH_SOLVERS['switch-btor'] = SwitchBtor
-
-if 'msat' in ss.solvers:
-    class SwitchMsat(_SwitchSolver):
-        LOGICS = [QF_BV, QF_UFBV] #, QF_ABV, QF_AUFBV, QF_AX]
-        _create_solver = ss.create_msat_solver
-
-    SWITCH_SOLVERS['switch-msat'] = SwitchMsat
-
+#
+#if 'msat' in ss.solvers:
+#    class SwitchMsat(_SwitchSolver):
+#        LOGICS = [QF_BV, QF_UFBV] #, QF_ABV, QF_AUFBV, QF_AX]
+#        _create_solver = ss.create_msat_solver
+#
+#    SWITCH_SOLVERS['switch-msat'] = SwitchMsat
+#
 
 def check_args(cmp, n):
     def wrapper(f):
@@ -231,9 +233,9 @@ class SwitchConverter(Converter, DagWalker):
         res = self.make_symbol(formula.symbol_name(), sort)
 
         if sort_i.is_function_type():
-            return self.declared_vars.setdefault(formula, res)
-        else:
             return self.declared_funs.setdefault(formula, res)
+        else:
+            return self.declared_vars.setdefault(formula, res)
 
 
 

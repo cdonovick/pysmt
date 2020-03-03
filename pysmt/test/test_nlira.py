@@ -25,8 +25,9 @@ from pysmt.shortcuts import Solver, is_sat
 from pysmt.typing import REAL, INT
 from pysmt.exceptions import (ConvertExpressionError,
                               NonLinearError,
-                              SolverReturnedUnknownResultError)
-from pysmt.logics import QF_NRA
+                              SolverReturnedUnknownResultError,
+                              NoLogicAvailableError)
+from pysmt.logics import QF_NRA, get_closer_logic
 from pysmt.constants import Fraction
 
 
@@ -75,10 +76,19 @@ class TestNonLinear(TestCase):
                 elif sname in ["yices", "cvc4", "msat"]:
                     with self.assertRaises(NonLinearError):
                         s.is_sat(f)
-                else:
+                elif sname == 'z3':
                     res = s.is_sat(f)
                     self.assertTrue(res, sname)
                     self.assertIn(QF_NRA, s.LOGICS, sname)
+                else:
+                    try:
+                        get_closer_logic(s.LOGICS, QF_NRA)
+                    except NoLogicAvailableError:
+                        pass
+                    else:
+                        res = s.is_sat(f)
+                        self.assertTrue(res, sname)
+                        self.assertIn(QF_NRA, s.LOGICS, sname)
 
     @skipIfSolverNotAvailable("z3")
     def test_integer(self):
