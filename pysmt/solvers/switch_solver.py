@@ -1,3 +1,4 @@
+from collections import ChainMap
 import functools as ft
 import itertools as it
 import operator
@@ -175,7 +176,9 @@ class SwitchConverter(Converter, DagWalker):
         self.make_term = solver.make_term
         self.make_symbol = solver.make_symbol
         self.make_sort = solver.make_sort
-        self.declared_vars = {}
+        self.declared_funs = fs = {}
+        self.declared_vars = vs = {}
+        self.declared_syms = ChainMap(vs, fs)
         self.declared_sorts = {}
 
     @catch_conversion_error
@@ -219,13 +222,20 @@ class SwitchConverter(Converter, DagWalker):
     @check_args(operator.eq, 0)
     def walk_symbol(self, formula, args, **kwargs):
         try:
-            return self.declared_vars[formula]
+            return self.declared_syms[formula]
         except KeyError:
             pass
 
-        sort = self._convert_sort(formula.symbol_type())
+        sort_i = formula.symbol_type()
+        sort = self._convert_sort(sort_i)
         res = self.make_symbol(formula.symbol_name(), sort)
-        return self.declared_vars.setdefault(formula, res)
+
+        if sort_i.is_function_type():
+            return self.declared_vars.setdefault(formula, res)
+        else:
+            return self.declared_funs.setdefault(formula, res)
+
+
 
 
     @check_args(operator.eq, 0)
