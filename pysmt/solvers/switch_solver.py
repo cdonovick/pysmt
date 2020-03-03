@@ -123,7 +123,7 @@ class _SwitchSolver(IncrementalTrackingSolver,
 
 if 'btor' in  ss.solvers:
     class SwitchBtor(_SwitchSolver):
-        LOGICS = [QF_BV, QF_UFBV]
+        LOGICS = [QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX]
         _create_solver = ss.create_btor_solver
 
         @clear_pending_pop
