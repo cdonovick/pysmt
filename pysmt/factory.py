@@ -164,7 +164,7 @@ class Factory(object):
                     if default_logic in SolverClass.LOGICS:
                         logic = default_logic
                     else:
-                        raise NoLogicAvailableError("Cannot automatically select a logic")
+                        raise NoLogicAvailableError("Cannot automatically select a logic", default_logic)
 
             closer_logic = get_closer_logic(SolverClass.LOGICS, logic)
 

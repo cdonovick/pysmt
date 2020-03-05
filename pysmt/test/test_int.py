@@ -36,7 +36,7 @@ class TestLIA(TestCase):
         self.assertValid(Iff(f, g), "Formulae were expected to be equivalent",
                          logic=QF_LIA)
 
-    @skipIfNoSolverForLogic(QF_LIA)
+    @skipIfNoSolverForLogic(QF_UFLIRA)
     def test_lira(self):
         varA = Symbol("A", REAL)
         varB = Symbol("B", INT)

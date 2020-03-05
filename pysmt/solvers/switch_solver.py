@@ -2,7 +2,7 @@ from collections import ChainMap
 import functools as ft
 import itertools as it
 import operator
-from pysmt.exceptions import SolverAPINotFound
+from pysmt.exceptions import SolverAPINotFound, UndefinedLogicError
 import sys
 
 try:
@@ -18,7 +18,8 @@ from pysmt.walkers import DagWalker
 from pysmt.exceptions import (SolverReturnedUnknownResultError,
                               ConvertExpressionError, PysmtValueError)
 from pysmt.decorators import clear_pending_pop, catch_conversion_error
-from pysmt.logics import QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX
+from pysmt.logics import get_logic, SMTLIB2_LOGICS
+
 from pysmt.constants import to_python_integer
 
 
@@ -122,8 +123,27 @@ class _SwitchSolver(IncrementalTrackingSolver,
 
 
 if 'btor' in  ss.solvers:
+    logics_params = dict(
+        quantifier_free=[True],
+        arrays=[True, False],
+        bit_vectors=[True, False],
+        uninterpreted=[True, False],
+    )
+
+    logics = []
+    for params in it.product(*logics_params.values()):
+        args = dict(zip(logics_params.keys(), params))
+        try:
+            logic = get_logic(**args)
+        except UndefinedLogicError:
+            pass
+        else:
+            if logic in SMTLIB2_LOGICS:
+                logics.append(logic)
+
+
     class SwitchBtor(_SwitchSolver):
-        LOGICS = [QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX]
+        LOGICS = logics
         _create_solver = ss.create_btor_solver
 
         @clear_pending_pop
@@ -134,9 +154,33 @@ if 'btor' in  ss.solvers:
 
     SWITCH_SOLVERS['switch-btor'] = SwitchBtor
 
+
 if 'msat' in ss.solvers:
+    logics_params = dict(
+        quantifier_free=[True],
+        arrays=[True, False],
+        bit_vectors=[True, False],
+        uninterpreted=[True, False],
+        integer_arithmetic=[True, False],
+        integer_difference=[True, False],
+        real_arithmetic=[True, False],
+        real_difference=[True, False],
+        linear=[True],
+    )
+
+    logics = []
+    for params in it.product(*logics_params.values()):
+        args = dict(zip(logics_params.keys(), params))
+        try:
+            logic = get_logic(**args)
+        except UndefinedLogicError:
+            pass
+        else:
+            if logic in SMTLIB2_LOGICS:
+                logics.append(logic)
+
     class SwitchMsat(_SwitchSolver):
-        LOGICS = [QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX]
+        LOGICS = logics
         _create_solver = ss.create_msat_solver
 
     SWITCH_SOLVERS['switch-msat'] = SwitchMsat
