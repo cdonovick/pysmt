@@ -133,14 +133,14 @@ if 'btor' in  ss.solvers:
             self.options(self)
 
     SWITCH_SOLVERS['switch-btor'] = SwitchBtor
-#
-#if 'msat' in ss.solvers:
-#    class SwitchMsat(_SwitchSolver):
-#        LOGICS = [QF_BV, QF_UFBV] #, QF_ABV, QF_AUFBV, QF_AX]
-#        _create_solver = ss.create_msat_solver
-#
-#    SWITCH_SOLVERS['switch-msat'] = SwitchMsat
-#
+
+if 'msat' in ss.solvers:
+    class SwitchMsat(_SwitchSolver):
+        LOGICS = [QF_BV, QF_UFBV, QF_ABV, QF_AUFBV, QF_AX]
+        _create_solver = ss.create_msat_solver
+
+    SWITCH_SOLVERS['switch-msat'] = SwitchMsat
+
 
 def check_args(cmp, n):
     def wrapper(f):
@@ -237,9 +237,6 @@ class SwitchConverter(Converter, DagWalker):
         else:
             return self.declared_vars.setdefault(formula, res)
 
-
-
-
     @check_args(operator.eq, 0)
     def _walk_constant(self, formula, args, **kwargs):
         sort = self._convert_sort(formula.constant_type())
@@ -267,7 +264,7 @@ class SwitchConverter(Converter, DagWalker):
     def walk_function(self, formula, args, **kwargs):
         name = formula.function_name()
         f = self.walk_symbol(name, name.args())
-        res = self.make_term(ss.primops.Apply, f, *args)
+        res = self.make_term(ss.primops.Apply, [f, *args])
         return res
 
     # Int / real operatos
@@ -345,7 +342,7 @@ class SwitchConverter(Converter, DagWalker):
     walk_bv_ule = make_walk_binary(ss.primops.BVUle)
     walk_bv_ult = make_walk_binary(ss.primops.BVUlt)
     walk_bv_urem = make_walk_binary(ss.primops.BVUrem)
-    walk_bv_xor = make_walk_binary(ss.primops.Xor)
+    walk_bv_xor = make_walk_binary(ss.primops.BVXor)
 
     @check_args(operator.eq, 1)
     def walk_bv_zext(self, formula, args, **kwargs):
