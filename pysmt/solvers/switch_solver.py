@@ -325,6 +325,8 @@ class SwitchConverter(Converter, DagWalker):
     walk_div = make_walk_binary(ss.primops.Div)
     walk_pow = make_walk_binary(ss.primops.Pow)
 
+    walk_toreal = make_walk_unary(ss.primops.To_Real)
+
     # BV Operators
     walk_bv_add = make_walk_binary(ss.primops.BVAdd)
     walk_bv_and = make_walk_binary(ss.primops.BVAnd)
