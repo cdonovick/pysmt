@@ -286,6 +286,9 @@ class SwitchConverter(Converter, DagWalker):
         sort = self._convert_sort(formula.constant_type())
         if formula.constant_type().is_bool_type():
             res = self.make_term(bool(formula.constant_value()))
+        elif formula.constant_type().is_real_type():
+            val = formula.constant_value()
+            res = self.make_term(f'{val.numerator}/{val.denominator}', sort)
         else:
             res = self.make_term(repr(formula.constant_value()), sort)
         return res
