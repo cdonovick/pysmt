@@ -131,17 +131,22 @@ class _SwitchSolver(IncrementalTrackingSolver,
         assignment = {}
         while arr.get_op():
             arr, idx, elem = [x for x in arr]
-            assignment[self._get_value(idx, sort.index_type)] = self._get_value(elem, sort.elem_type)
+            idx = self._get_value(idx, sort.index_type)
+            val = self._get_value(elem, sort.elem_type)
+            assignment[idx] = val 
 
-        base = [x for x in arr]
-        if not base:
-            base = self._make_0(sort.elem_type)
+        children = [x for x in arr]
+        if not children:
+            default = self._make_0(sort.elem_type)
         else:
-            base = self._get_value(base[0], sort.elem_type)
+            assert len(children) == 1
+            default = self._get_value(children[0], sort.elem_type)
 
-        return (sort.index_type, base, assignment)
+        return sort.index_type, default, assignment
 
     def _make_0(self, sort):
+        if sort.is_array_type():
+            return self.mgr.Array(sort.index_type, self._make_0(sort.elem_type))
         if sort.is_bool_type():
             return self.mgr.Bool(0)
         elif sort.is_bv_type():
@@ -275,35 +280,35 @@ if 'msat' in ss.solvers:
 
     SWITCH_SOLVERS['switch-msat'] = SwitchMsat
 
-#if 'cvc4' in ss.solvers:
-#    logics_params = dict(
-#        quantifier_free=[True],
-#        arrays=[True, False],
-#        bit_vectors=[True, False],
-#        uninterpreted=[True, False],
-#        integer_arithmetic=[True, False],
-#        integer_difference=[True, False],
-#        real_arithmetic=[True, False],
-#        real_difference=[True, False],
-#        linear=[True],
-#    )
-#
-#    logics = []
-#    for params in it.product(*logics_params.values()):
-#        args = dict(zip(logics_params.keys(), params))
-#        try:
-#            logic = get_logic(**args)
-#        except UndefinedLogicError:
-#            pass
-#        else:
-#            if logic in SMTLIB2_LOGICS:
-#                logics.append(logic)
-#
-#    class SwitchCVC4(_SwitchSolver):
-#        LOGICS = logics
-#        _create_solver = ss.create_cvc4_solver
-#
-#    SWITCH_SOLVERS['switch-cvc4'] = SwitchCVC4
+if 'cvc4' in ss.solvers:
+    logics_params = dict(
+        quantifier_free=[True],
+        arrays=[True, False],
+        bit_vectors=[True, False],
+        uninterpreted=[True, False],
+        integer_arithmetic=[True, False],
+        integer_difference=[True, False],
+        real_arithmetic=[True, False],
+        real_difference=[True, False],
+        linear=[True],
+    )
+
+    logics = []
+    for params in it.product(*logics_params.values()):
+        args = dict(zip(logics_params.keys(), params))
+        try:
+            logic = get_logic(**args)
+        except UndefinedLogicError:
+            pass
+        else:
+            if logic in SMTLIB2_LOGICS:
+                logics.append(logic)
+
+    class SwitchCVC4(_SwitchSolver):
+        LOGICS = logics
+        _create_solver = ss.create_cvc4_solver
+
+    SWITCH_SOLVERS['switch-cvc4'] = SwitchCVC4
 
 def check_args(cmp, n):
     def wrapper(f):
