@@ -4,6 +4,7 @@ import itertools as it
 import operator
 from pysmt.exceptions import SolverAPINotFound, UndefinedLogicError
 import sys
+import fractions
 
 try:
     import smt_switch as ss
@@ -37,6 +38,43 @@ class SwitchOptions(SolverOptions):
                 solver.solver.set_opt(k, v)
             except:
                 raise PysmtValueError(f"Error setting the option '{k}={v}'")
+
+def _parse_real(s):
+    def _parse(it):
+        tree = []
+        num = []
+        for c in it:
+            if c.isdigit():
+                num.append(c)
+                continue
+            elif num:
+                tree.append(int(''.join(num)))
+                num = []
+
+            if c == ')':
+                break
+            elif c == ' ':
+                continue
+            elif c == '(':
+                tree.append(_parse(it))
+            elif c == '-':
+                tree.append(operator.neg)
+            elif c == '/':
+                tree.append(fractions.Fraction)
+            else:
+                raise ValueError()
+
+        if num:
+            tree.append(int(''.join(num)))
+
+        assert tree
+        if len(tree) == 1:
+            assert isinstance(tree[0], (int, fractions.Fraction))
+            return tree[0]
+        else:
+            return tree[0](*tree[1:])
+
+    return _parse(iter(repr(s)))
 
 
 class _SwitchSolver(IncrementalTrackingSolver,
@@ -79,7 +117,8 @@ class _SwitchSolver(IncrementalTrackingSolver,
         elif sort.is_int_type():
             return self.mgr.Int(int(val))
         elif sort.is_real_type():
-            raise NotImplementedError()
+            r = _parse_real(val)
+            return self.mgr.Real(r)
         else:
             raise ConvertExpressionError(f'Unsupported sort: {sort}')
 
@@ -87,7 +126,6 @@ class _SwitchSolver(IncrementalTrackingSolver,
     @clear_pending_pop
     def _reset_assertions(self):
         self.solver.reset_assertions()
-        self.options(self)
 
     @clear_pending_pop
     def _add_assertion(self, formula, named=None):
@@ -97,11 +135,32 @@ class _SwitchSolver(IncrementalTrackingSolver,
 
     @clear_pending_pop
     def _solve(self, assumptions=None):
+#        if assumptions is None:
+#            res =  self.solver.check_sat()
+#        else:
+#            assumptions = [self.converter.convert(a) for a in assumptions]
+#            res =  self.solver.check_sat_assuming(assumptions)
+
         if assumptions is None:
-            res = self.solver.check_sat()
+            assumptions = ()
+
+        bool_ass = []
+        other_ass = []
+        for x in assumptions:
+            if x.is_literal():
+                bool_ass.append(self.converter.convert(x))
+            else:
+                other_ass.append(x)
+
+        if other_ass:
+            self.push()
+            self.add_assertion(self.mgr.And(other_ass))
+            self.pending_pop = True
+
+        if bool_ass:
+            res = self.solver.check_sat_assuming(bool_ass)
         else:
-            assumptions = [self.converter.convert(a) for a in assumptions]
-            res = self.solver.check_sat_assuming(assumptions)
+            res = self.solver.check_sat()
 
         if res.is_sat():
             return True
@@ -185,6 +244,35 @@ if 'msat' in ss.solvers:
 
     SWITCH_SOLVERS['switch-msat'] = SwitchMsat
 
+if 'cvc4' in ss.solvers:
+    logics_params = dict(
+        quantifier_free=[True],
+        arrays=[True, False],
+        bit_vectors=[True, False],
+        uninterpreted=[True, False],
+        integer_arithmetic=[True, False],
+        integer_difference=[True, False],
+        real_arithmetic=[True, False],
+        real_difference=[True, False],
+        linear=[True],
+    )
+
+    logics = []
+    for params in it.product(*logics_params.values()):
+        args = dict(zip(logics_params.keys(), params))
+        try:
+            logic = get_logic(**args)
+        except UndefinedLogicError:
+            pass
+        else:
+            if logic in SMTLIB2_LOGICS:
+                logics.append(logic)
+
+    class SwitchCVC4(_SwitchSolver):
+        LOGICS = logics
+        _create_solver = ss.create_cvc4_solver
+
+    SWITCH_SOLVERS['switch-cvc4'] = SwitchCVC4
 
 def check_args(cmp, n):
     def wrapper(f):
