@@ -77,6 +77,7 @@ def _parse_real(s):
     return _parse(iter(repr(s)))
 
 
+
 class _SwitchSolver(IncrementalTrackingSolver,
                    SmtLibBasicSolver,
                    SmtLibIgnoreMixin):
@@ -106,8 +107,12 @@ class _SwitchSolver(IncrementalTrackingSolver,
         sort = item.get_type()
         item = self.converter.convert(item)
         val = self.solver.get_value(item)
+        return self._get_value(val, sort)
+
+    def _get_value(self, val, sort):
         if sort.is_array_type():
-            raise NotImplementedError()
+            args = self._get_array_value(val, sort)
+            return self.mgr.Array(*args)
         elif sort.is_bool_type():
             return self.mgr.Bool(bool(val))
         elif sort.is_bv_type():
@@ -121,6 +126,32 @@ class _SwitchSolver(IncrementalTrackingSolver,
             return self.mgr.Real(r)
         else:
             raise ConvertExpressionError(f'Unsupported sort: {sort}')
+
+    def _get_array_value(self, arr, sort):
+        assignment = {}
+        while arr.get_op():
+            arr, idx, elem = [x for x in arr]
+            assignment[self._get_value(idx, sort.index_type)] = self._get_value(elem, sort.elem_type)
+
+        base = [x for x in arr]
+        if not base:
+            base = self._make_0(sort.elem_type)
+        else:
+            base = self._get_value(base[0], sort.elem_type)
+
+        return (sort.index_type, base, assignment)
+
+    def _make_0(self, sort):
+        if sort.is_bool_type():
+            return self.mgr.Bool(0)
+        elif sort.is_bv_type():
+            return self.mgr.BV(0, sort.width)
+        elif sort.is_int_type():
+            return self.mgr.Int(0)
+        elif sort.is_real_type():
+            return self.mgr.Real(0)
+        else:
+            raise TypeError(f'Unsupported sort: {sort}')
 
 
     @clear_pending_pop
@@ -244,35 +275,35 @@ if 'msat' in ss.solvers:
 
     SWITCH_SOLVERS['switch-msat'] = SwitchMsat
 
-if 'cvc4' in ss.solvers:
-    logics_params = dict(
-        quantifier_free=[True],
-        arrays=[True, False],
-        bit_vectors=[True, False],
-        uninterpreted=[True, False],
-        integer_arithmetic=[True, False],
-        integer_difference=[True, False],
-        real_arithmetic=[True, False],
-        real_difference=[True, False],
-        linear=[True],
-    )
-
-    logics = []
-    for params in it.product(*logics_params.values()):
-        args = dict(zip(logics_params.keys(), params))
-        try:
-            logic = get_logic(**args)
-        except UndefinedLogicError:
-            pass
-        else:
-            if logic in SMTLIB2_LOGICS:
-                logics.append(logic)
-
-    class SwitchCVC4(_SwitchSolver):
-        LOGICS = logics
-        _create_solver = ss.create_cvc4_solver
-
-    SWITCH_SOLVERS['switch-cvc4'] = SwitchCVC4
+#if 'cvc4' in ss.solvers:
+#    logics_params = dict(
+#        quantifier_free=[True],
+#        arrays=[True, False],
+#        bit_vectors=[True, False],
+#        uninterpreted=[True, False],
+#        integer_arithmetic=[True, False],
+#        integer_difference=[True, False],
+#        real_arithmetic=[True, False],
+#        real_difference=[True, False],
+#        linear=[True],
+#    )
+#
+#    logics = []
+#    for params in it.product(*logics_params.values()):
+#        args = dict(zip(logics_params.keys(), params))
+#        try:
+#            logic = get_logic(**args)
+#        except UndefinedLogicError:
+#            pass
+#        else:
+#            if logic in SMTLIB2_LOGICS:
+#                logics.append(logic)
+#
+#    class SwitchCVC4(_SwitchSolver):
+#        LOGICS = logics
+#        _create_solver = ss.create_cvc4_solver
+#
+#    SWITCH_SOLVERS['switch-cvc4'] = SwitchCVC4
 
 def check_args(cmp, n):
     def wrapper(f):
